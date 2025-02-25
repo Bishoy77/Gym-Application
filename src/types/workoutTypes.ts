@@ -1,5 +1,5 @@
-export interface Workout {
+export interface IWorkout {
     id: Number;
     name: String;
-    difficulty: String;
+    exercises: { name: String, sets: Number, reps: Number }[];
 }

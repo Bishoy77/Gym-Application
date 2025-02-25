@@ -1,39 +1,44 @@
 import {Request, Response} from "express";
-import {workouts} from "../data/workoutDatabase";
-import jsend from "jsend";
+import { Workout } from "../models/workoutModel";
 
-export const getWorkouts = (req: Request, res: Response) => {
-    res.json(workouts);
-}
-export const createWorkout = (req: Request, res: Response) => {
-    
-    // workouts.push(req.body);
-    const {name, difficulty} = req.body;
-    const newWorkout = {id: workouts.length + 1, name, difficulty};
-
-    workouts.push(newWorkout);
-    res.status(201).json(jsend.success(newWorkout));
-
-}
-export const updateWorkout = (req: Request, res: Response) => {
-    const id: Number = +req.params.id;
-    const workout = workouts.find(workout=>workout.id === id);
-    if (workout) {
-        workout.name = req.body.name;
-        workout.difficulty = req.body.difficulty;
-        res.status(200).json(jsend.success(workout));
-    } else {
-        res.status(404).json(jsend.error({message: "Workout not found"}));
+export const createWorkout = async (req: Request, res: Response) => {
+    try {
+        const workout = await Workout.create(req.body);
+        res.status(201).json(workout);
+    } catch (error) {
+        res.status(500).json({ error: (error as Error).message });
+    }
+};
+export const getWorkouts = async (req: Request, res: Response) => {
+    try {
+        const workouts = await Workout.find().populate("clientId");
+        res.json(workouts);
+    } catch (error) {
+        res.status(500).json({ error: (error as Error).message });
     }
 }
-export const deleteWorkout = (req: Request, res: Response) => {
-    const id: Number = +req.params.id;
-    const index = workouts.findIndex(workout=>workout.id === id);
-    if (index !== -1){
-        workouts.splice(index, 1);
-        res.status(204).json(jsend.success({message: "Workout deleted"}));
-    }else {
-        res.status(404).json(jsend.fail({message: "Workout not found"}));
+export const updateWorkout = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const workout = await Workout.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (!workout) {
+            res.status(404).json({ message: "Workout not found" });
+            return;
+        }
+        res.json(workout);
+    } catch (error) {
+        res.status(500).json({ error: (error as Error).message });
     }
-    
+}
+
+export const deleteWorkout = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const workout = await Workout.findByIdAndDelete(req.params.id);
+        if (!workout){
+            res.status(404).json({ message: "Workout not found" });
+            return;
+        }    
+        res.json({ message: "Workout deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ error: (error as Error).message });
+    }
 }
