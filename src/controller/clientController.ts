@@ -1,34 +1,67 @@
 import {Request, Response} from "express";
 import jsend from "jsend";
-import {clients} from "../data/clientDatabase";
+import { Client } from "../models/clientModel";
+import { Coach } from "../models/coachModel";
+import { Meal } from "../models/mealModel";
+export const createClient = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const client = await Client.create(req.body);
+      if (req.body.coachId) {
+        const coach = await Coach.findById(req.body.coachId);
+        if (!coach) {
+            res.status(404).json({ message: "Coach not found" });
+            return;
+        }
+        coach.clients.push(client._id as any);
+        await coach.save();
+      }
+      res.status(201).json(client);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+};
+export const getClients = async(req: Request, res: Response): Promise<void> => {
+    try {
+        const clients = await Client.find().populate({path: "coachId", select: "name"})
+        .populate({path: "dietPlan", populate: {path: "meals",select: "name -_id"}});
+        res.json(clients);
+      } catch (error) {
+        res.status(500).json({ error: (error as Error).message });
+      }
+}
+export const getClientById = async (req: Request, res: Response): Promise <void> => {
+    try {
+      const client = await Client.findById(req.params.id).populate({path: "coachId", select: "name"})
+        .populate({path: "dietPlan", populate: {path: "meals",select: "name -_id"}});
+      if (!client) {
+        res.status(404).json({ message: "Client not found" });
+        return;
+      }
+      res.json(client);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+};
+export const updateClient = async (req: Request, res: Response):Promise<void> => {
+try {
+    const client = await Client.findByIdAndUpdate(req.params.id, req.body, { new: true });
 
-export const getClientById = (req: Request, res: Response) => {
-    const id: Number = +req.params.id;
-    const client = clients.find(client=>client.id === id);
-    if (client) {
-        res.status(200).json({data: client});
+    if (!client) {
+        res.status(404).json({ message: "Client not found" });
+        return;
     }
-    else {
-        res.status(404).json(jsend.fail({ message: "Client not found" }));
+    if (req.body.coachId) {
+        const coach = await Coach
+            .findById(req.body.coachId)
+        if (!coach) {
+            res.status(404).json({ message: "Coach not found" });
+            return;
+        }
+        coach.clients.push(client._id as any);
+        await coach.save();
     }
+    res.json(client);
+} catch (error) {
+    res.status(500).json({ error: (error as Error).message });
 }
-export const createClient = (req: Request, res: Response) => {
-    const {name, coachId, dietPlan} = req.body;
-    const newClient = {id: clients.length + 1, name, coachId, dietPlan};
-    clients.push(newClient);
-    res.status(201).json(jsend.success(newClient));
-}
-export const updateClient = (req: Request, res: Response) => {
-    const id: Number = +req.params.id;
-    const {name, coachId, dietPlan} = req.body;
-    const client = clients.find(client=>client.id === id);
-    if (client) {
-        name ? client.name = name : req.body.name;
-        coachId ? client.coachId = coachId : req.body.coachId;
-        dietPlan ? client.dietPlan = dietPlan : req.body.dietPlan;
-        res.status(200).json(jsend.success(client));
-    }
-    else {
-        res.status(404).json(jsend.fail({ message: "Client not found" }));
-    }
-}
+};
